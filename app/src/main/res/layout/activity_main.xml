@@ -3,7 +3,8 @@
     android:layout_height="match_parent" android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
-    android:paddingBottom="@dimen/activity_vertical_margin" tools:context=".MainActivity">
+    android:paddingBottom="@dimen/activity_vertical_margin"
+    tools:context=".MainActivity">
 
 
     <TextView android:text="@string/intro"
@@ -34,12 +35,28 @@
         android:singleLine="true" />
 
     <Button
-        android:id="@+id/shake_button"
+        android:id="@+id/shake_Button"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:layout_centerHorizontal="true"
-        android:layout_marginBottom="15dp"
+        android:layout_marginBottom="36dp"
         android:text="Shake" />
+
+    <Button
+        android:id="@+id/flash_Button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignTop="@+id/shake_Button"
+        android:layout_toStartOf="@+id/connect_button"
+        android:text="Flash" />
+
+    <Button
+        android:id="@+id/beep_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:layout_alignTop="@+id/shake_Button"
+        android:text="Beep" />
 
 </RelativeLayout>

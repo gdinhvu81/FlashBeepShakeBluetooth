@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/TalkerM.iml" filepath="$PROJECT_DIR$/TalkerM.iml" />
+      <module fileurl="file://$PROJECT_DIR$/FlashBeepShakeBluetooth.iml" filepath="$PROJECT_DIR$/FlashBeepShakeBluetooth.iml" />
       <module fileurl="file://C:\Users\gdinh\AndroidStudioProjects\TalkerM-master\TalkerM.iml" filepath="C:\Users\gdinh\AndroidStudioProjects\TalkerM-master\TalkerM.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
     </modules>

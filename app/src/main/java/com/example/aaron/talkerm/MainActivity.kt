@@ -11,20 +11,19 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.hardware.camera2.CameraManager
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.Bundle
-import android.os.ParcelUuid
 import android.os.Vibrator
 import android.support.v4.app.ActivityCompat
 import android.support.v7.app.AppCompatActivity
 import android.text.method.ScrollingMovementMethod
 import android.util.Log
 import android.view.Menu
-import android.view.View
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
-import com.example.aaron.talkerm.R.id.scan_button
-
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -62,7 +61,23 @@ class MainActivity : AppCompatActivity() {
      * Set up the listeners for the two buttons
      */
     private fun setUpButtons() {
-        val scanButton = findViewById(scan_button)
+        //Creates beep button to send beep message to server
+        val beepButton = findViewById(R.id.beep_button)
+        beepButton?.setOnClickListener{
+            client?.sendMsg("beeps")
+        }
+        //Creates flash button to send flash message to server
+        val flashButton = findViewById(R.id.flash_Button)
+        flashButton?.setOnClickListener{
+            client?.sendMsg("flash")
+        }
+        //Create shake button to send shake message to server
+        val shakeButton = findViewById(R.id.shake_Button)
+        shakeButton?.setOnClickListener{
+            client?.sendMsg("shake")
+        }
+
+        val scanButton = findViewById(R.id.scan_button)
         scanButton?.setOnClickListener {       //Scanning is the action performed by the client
             getPairedDevices()
             setUpBroadcastReceiver()
@@ -129,7 +144,7 @@ class MainActivity : AppCompatActivity() {
         if (pairedDevices.size > 0) {
             for (device in pairedDevices) {
                 Log.i(TCLIENT, device.name + "\n" + device)
-                mTextarea!!.append("" + device.name + "\n" + device.address + "\n" + device + "\n")
+                mTextarea!!.append("" + device.name + "\n" + device + "\n")
             }
         }
         Log.i(TCLIENT, "getPairedDevices() - End of Known Paired Devices\n------")
@@ -181,7 +196,6 @@ class MainActivity : AppCompatActivity() {
     private fun setupDiscovery() {
         Log.i(TCLIENT,"Activating Discovery")
         val filter = IntentFilter(BluetoothDevice.ACTION_FOUND)
-        filter.addAction(BluetoothDevice.ACTION_UUID)
         registerReceiver(mReceiver, filter)
         mBluetoothAdapter!!.startDiscovery()
     }
@@ -193,34 +207,32 @@ class MainActivity : AppCompatActivity() {
         Log.i(TCLIENT, "handleBRDevice() -- starting   <<<<--------------------")
         val action = intent.action
         // When discovery finds a device
-        if (BluetoothDevice.ACTION_UUID == action) {
+        if (BluetoothDevice.ACTION_FOUND == action) {
             // Get the BluetoothDevice object from the Intent
             val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
-            val uuids  = intent.getParcelableArrayExtra(BluetoothDevice.EXTRA_UUID)
-            if (uuids != null) {
-                val name = nameForDevice(device)
-                uuids.forEach {
-                    Log.i(TCLIENT, "$name UUID: $it")
-                    val thisUUID: UUID = (it as ParcelUuid).uuid
-                    if(myUUID == thisUUID){
-                        Log.i(TCLIENT, "---------> Found our UUID")
-                        client?.start()
-                    }
+            val deviceName  =
+                if (device.name != null) {
+                    device.name.toString()
+                } else {
+                    "--no name--"
+                }
+            Log.i(TCLIENT, deviceName + "\n" + device)
+            mTextarea!!.append("$deviceName, $device \n")
+
+            // The following is specific to this App for the client
+            if (deviceName.length > 3) { //for now, looking for MSU prefix
+                val prefix = deviceName.subSequence(0,3)
+                mTextarea!!.append("Prefix = $prefix\n    ")
+                if (prefix == "MSU") {//This is the server
+                    Log.i(TCLIENT,"Canceling Discovery")
+                    mBluetoothAdapter!!.cancelDiscovery()
+                    Log.i(TCLIENT,"Connecting")
+                    client = ConnectThread(device)  //FIX** remember and reconnect if interrupted?
+                    Log.i(TCLIENT,"Running Connect Thread")
+                    client?.start()
                 }
             }
         }
-    }
-
-    private fun nameForDevice(device: BluetoothDevice){
-        val deviceName =
-                if(device.name != null){
-                    device.name.toString()
-                }
-                else{
-                    "--no name--"
-                }
-        Log.i(TCLIENT, deviceName + "\n" + device)
-        mTextarea!!.append("$deviceName, $device \n")
     }
 
     override fun onStop() {
@@ -242,6 +254,7 @@ class MainActivity : AppCompatActivity() {
 
     private inner class ConnectThread(mmDevice: BluetoothDevice):Thread(){//from android developer
         private var mmSocket: BluetoothSocket? = null
+        private  var sock: BluetoothSocket? = null
 
         init {
             // Get a BluetoothSocket to connect with the given BluetoothDevice
@@ -281,13 +294,13 @@ class MainActivity : AppCompatActivity() {
                 return
             }
             Log.i(TCLIENT, "Connection Established")
-            val sock = mmSocket!!
+            sock = mmSocket!!
             // Do work to manage the connection (in a separate thread)
-            manageConnectedSocket(sock)      //talk to server
+            //manageConnectedSocket(sock)      //talk to server
         }
 
         //manage the connection over the passed-in socket
-        private fun manageConnectedSocket(socket: BluetoothSocket) {
+       /* private fun manageConnectedSocket(socket: BluetoothSocket) {
             val out: OutputStream
             val theMessage = "ABC"      //test message: send actual message here
             val msg = theMessage.toByteArray()
@@ -300,6 +313,23 @@ class MainActivity : AppCompatActivity() {
                 return
             }
 
+        }*/
+        /**
+         * Sends a message flash, shake, beep message to server
+         */
+        fun sendMsg(str:String){
+            if(sock != null ){
+                val out: OutputStream
+                val msg = str.toByteArray()
+                try {
+                    Log.i(TCLIENT, "Sending the message: [$str]")
+                    out = sock!!.outputStream
+                    out.write(msg)
+                } catch (ioe: IOException) {
+                    Log.e(TCLIENT, "IOException when opening outputStream\n $ioe")
+                    return
+                }
+            }
         }
 
         /**
@@ -349,7 +379,6 @@ class MainActivity : AppCompatActivity() {
 
                 // If a connection was accepted
                 if (socket != null) {
-
                     Log.i(TSERVER, "Server Thread run(): Connection accepted")
                     // Do work to manage the connection (in a separate thread)
                     manageConnectedSocket(socket)
@@ -363,28 +392,43 @@ class MainActivity : AppCompatActivity() {
         //manage the Server's end of the conversation on the passed-in socket
         fun manageConnectedSocket(socket: BluetoothSocket) {
             Log.i(TSERVER, "\nManaging the Socket\n")
-
-            val inSt: InputStream
-            val nBytes: Int
-            val msg = ByteArray(255) //arbitrary size
-            try {
-                inSt = socket.inputStream
-                nBytes = inSt.read(msg)
-                Log.i(TSERVER, "\nServer Received $nBytes \n")
-            } catch (ioe: IOException) {
-                Log.e(TSERVER, "IOException when opening inputStream\n $ioe")
-                return
-            }
-
-            try {
-                val msgString = msg.toString(Charsets.UTF_8)
-                Log.i(TSERVER, "\nServer Received  $nBytes, Bytes:  [$msgString]\n")
-                //runOnUiThread { echoMsg("\nReceived $nBytes:  [$msgString]\n") }
-            } catch (uee: UnsupportedEncodingException) {
-                Log.e(TSERVER,
-                    "UnsupportedEncodingException when converting bytes to String\n $uee")
-            } finally {
-                cancel()        //for this App - close() after 1 (or no) message received
+            var flashOn = true
+            while(true) {
+                val inSt: InputStream
+                val nBytes: Int
+                val msg = ByteArray(255) //arbitrary size
+                try {
+                    inSt = socket.inputStream
+                    nBytes = inSt.read(msg)
+                    Log.i(TSERVER, "\nServer Received $nBytes \n")
+                    try {
+                        val msgString = msg.toString(Charsets.UTF_8)
+                        Log.i(TSERVER, "\nServer Received  $nBytes, Bytes:  [$msgString]\n")
+                        runOnUiThread { echoMsg("\nReceived $nBytes:  [$msgString]\n") }
+                        Log.i(TSERVER,"received : "+msgString.toLowerCase().subSequence(0..4))
+                        when(msgString.toLowerCase().subSequence(0..4)) {
+                            "beeps" ->
+                                ToneGenerator(AudioManager.STREAM_MUSIC, 50).startTone(ToneGenerator.TONE_DTMF_3,1000)
+                            "shake" ->
+                                (getSystemService(Context.VIBRATOR_SERVICE) as Vibrator).vibrate(100)
+                            "flash" ->
+                            {
+                                val camManager = getSystemService(Context.CAMERA_SERVICE) as CameraManager
+                                val cam = camManager.cameraIdList[0]
+                                camManager.setTorchMode(cam, flashOn)
+                                flashOn = !flashOn
+                            }
+                            else ->
+                                Log.i(LOG_TAG, "Something else received ${msgString.toLowerCase().subSequence(0..4)}")
+                        }
+                    } catch (uee: UnsupportedEncodingException) {
+                    Log.e(TSERVER,
+                            "UnsupportedEncodingException when converting bytes to String\n $uee")
+                    }
+                } catch (ioe: IOException) {
+                    Log.e(TSERVER, "IOException when opening inputStream\n $ioe")
+                    return
+                }
             }
         }
 
@@ -397,12 +441,6 @@ class MainActivity : AppCompatActivity() {
             } catch (ioe: IOException) {
                 Log.e(TSERVER, "IOException when canceling serverSocket\n $ioe")
             }
-        }
-
-        //Function to vibrate the phone when button is clicked
-        fun vibrateDevice(view: View){
-            var vibrator : Vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-            vibrator.vibrate(500)
         }
     }
 
